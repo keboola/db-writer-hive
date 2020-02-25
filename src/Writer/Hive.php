@@ -7,6 +7,7 @@ namespace Keboola\DbWriter\Writer;
 use Exception;
 use Generator;
 use Keboola\DbWriter\Connection\HiveConnectionFactory;
+use Keboola\DbWriter\Exception\UserException;
 use NoRewindIterator;
 use LimitIterator;
 use Dibi;
@@ -39,6 +40,12 @@ class Hive extends Writer
     {
         $this->connectionFactory = new HiveConnectionFactory();
         parent::__construct($dbParams, $logger);
+    }
+
+
+    public static function getAllowedTypes(): array
+    {
+        return self::$allowedTypes;
     }
 
     public function createConnection(array $params): Connection
@@ -123,14 +130,39 @@ class Hive extends Writer
         );
     }
 
-    public static function getAllowedTypes(): array
-    {
-        return self::$allowedTypes;
-    }
-
     public function validateTable(array $tableConfig): void
     {
-        // TODO: Implement validateTable() method.
+        $dbColumns = $this->getTableInfo($tableConfig['dbName'])['columns'];
+
+        foreach ($tableConfig['items'] as $column) {
+            $exists = false;
+            $targetDataType = null;
+            foreach ($dbColumns as $dbColumn) {
+                $exists = ($dbColumn['COLUMN_NAME'] === $column['dbName']);
+                if ($exists) {
+                    $targetDataType = $dbColumn['DATA_TYPE'];
+                    break;
+                }
+            }
+
+            if (!$exists) {
+                throw new UserException(sprintf(
+                    'Column "%s" not found in destination table "%s"',
+                    $column['dbName'],
+                    $tableConfig['dbName']
+                ));
+            }
+
+            if ($targetDataType !== strtolower($column['type'])) {
+                throw new UserException(sprintf(
+                    'Data type mismatch. Column "%s" is of type "%s" in writer, but is "%s" in destination table "%s"',
+                    $column['dbName'],
+                    $column['type'],
+                    $targetDataType,
+                    $tableConfig['dbName']
+                ));
+            }
+        }
     }
 
     private function prefixTableName(string $prefix, string $tableName): string

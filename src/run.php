@@ -5,16 +5,14 @@ declare(strict_types=1);
 use Keboola\DbWriter\Exception\UserException;
 use Keboola\DbWriter\Logger;
 use Keboola\DbWriter\HiveApplication;
+use Monolog\Handler\NullHandler;
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
-use Symfony\Component\Serializer\Encoder\JsonEncode;
 use Symfony\Component\Serializer\Encoder\JsonDecode;
 
 require __DIR__ . '/../vendor/autoload.php';
 
 $logger = new Logger('wr-db-hive');
 $jsonDecode = new JsonDecode([JsonDecode::ASSOCIATIVE => true]);
-$jsonEncode = new JsonEncode();
-$runAction = true;
 
 try {
     $dataFolder = getenv('KBC_DATADIR') === false ? '/data/' : (string) getenv('KBC_DATADIR');
@@ -28,7 +26,11 @@ try {
     }
 
     $app = new HiveApplication($config, $logger, $dataFolder);
-    $app->run();
+    if ($app['action'] !== 'run') {
+        $app['logger']->setHandlers(array(new NullHandler(Logger::INFO)));
+    }
+
+    echo $app->run();
     exit(0);
 } catch (UserException $e) {
     $logger->error($e->getMessage());

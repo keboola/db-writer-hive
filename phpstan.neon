@@ -2,4 +2,6 @@ parameters:
     checkMissingIterableValueType: false
     excludes_analyse:
         - src/run.php
+        - src/Configuration/HiveConfigRowDefinition.php
+        - src/Configuration/HiveActionConfigRowDefinition.php
     ignoreErrors: []
