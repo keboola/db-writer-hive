@@ -28,8 +28,8 @@ class TestConnectionTest extends TestCase
     public function testSuccessfullyConnection(array $config): void
     {
         $config['action'] = 'testConnection';
-        $result = $this->createApplication($config)->run();
-        $this->assertEquals('{"status":"success"}', $result);
+        $result = json_decode($this->createApplication($config)->run(), true);
+        $this->assertEquals(['status' => 'success'], $result);
     }
 
     /**

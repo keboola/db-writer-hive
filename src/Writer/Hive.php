@@ -118,16 +118,20 @@ class Hive extends Writer
 
     public function showTables(string $dbName): array
     {
-        // Used only in tests
-        throw new Exception('Not implemented');
+        return array_map(
+            fn($table) => $table['name'],
+            $this->db->getDriver()->getReflector()->getTables()
+        );
     }
 
     public function getTableInfo(string $tableName): array
     {
-        return array_map(
-            fn($col) => ['Field' => $col['name'], 'Type' => $col['nativetype']],
-            $this->db->getDriver()->getReflector()->getColumns($tableName)
-        );
+        return [
+            'columns' => array_map(
+                fn($col) => ['COLUMN_NAME' => $col['name'], 'DATA_TYPE' => $col['nativetype']],
+                $this->db->getDriver()->getReflector()->getColumns($tableName)
+            ),
+        ];
     }
 
     public function validateTable(array $tableConfig): void
