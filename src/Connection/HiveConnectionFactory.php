@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Keboola\DbWriter\Connection;
 
 use Dibi\Connection;
-use Keboola\DbExtractor\Exception\UserException;
+use Keboola\DbWriter\Exception\UserException;
 
 class HiveConnectionFactory
 {
