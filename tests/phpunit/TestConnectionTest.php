@@ -6,6 +6,7 @@ namespace Keboola\DbWriter\Tests;
 
 use Keboola\DbWriter\Exception\UserException;
 use Keboola\DbWriter\Tests\Traits\CreateApplicationTrait;
+use Keboola\DbWriter\Tests\Traits\DefaultConfigTrait;
 use Keboola\DbWriter\Tests\Traits\SshKeysTrait;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Process\Process;
@@ -14,6 +15,7 @@ class TestConnectionTest extends TestCase
 {
     use CreateApplicationTrait;
     use SshKeysTrait;
+    use DefaultConfigTrait;
 
     protected function tearDown(): void
     {
@@ -48,40 +50,10 @@ class TestConnectionTest extends TestCase
     {
         return [
             'valid-config' => [
-                [
-                    'parameters' => [
-                        'db' => [
-                            'host' => getenv('HIVE_DB_HOST'),
-                            'port' => (int) getenv('HIVE_DB_PORT'),
-                            'database' => getenv('HIVE_DB_DATABASE'),
-                            'user' => getenv('HIVE_DB_USER'),
-                            '#password' => getenv('HIVE_DB_PASSWORD'),
-                        ],
-                    ],
-                ],
+                $this->getDefaultConfig(),
             ],
             'valid-config-ssh' => [
-                [
-                    'parameters' => [
-                        'db' => [
-                            'host' => getenv('SSH_DB_HOST'),
-                            'port' => (int) getenv('HIVE_DB_PORT'),
-                            'database' => getenv('HIVE_DB_DATABASE'),
-                            'user' => getenv('HIVE_DB_USER'),
-                            '#password' => getenv('HIVE_DB_PASSWORD'),
-                            'ssh' => [
-                                'enabled' => true,
-                                'sshHost' => getenv('SSH_HOST'),
-                                'sshPort' => (int) getenv('SSH_PORT'),
-                                'user' => getenv('SSH_USER'),
-                                'keys' => [
-                                    'public' => $this->getPublicKey(),
-                                    '#private'=> $this->getPrivateKey(),
-                                ],
-                            ],
-                        ],
-                    ],
-                ],
+                $this->getSshConfig(),
             ],
         ];
     }

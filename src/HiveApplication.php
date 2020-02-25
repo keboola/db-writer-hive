@@ -14,7 +14,7 @@ class HiveApplication extends Application
         $config['parameters']['data_dir'] = $dataDir;
         $config['parameters']['writer_class'] = 'Hive';
 
-        $action = !is_null($config['action']) ?: 'run';
+        $action = $config['action'] ?? 'run';
         $configDefinition = $action === 'run' ?
             new HiveConfigRowDefinition() :
             new HiveActionConfigRowDefinition();

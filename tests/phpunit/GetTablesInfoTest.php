@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Keboola\DbWriter\Tests;
 
-use Dibi\Connection;
 use Keboola\DbWriter\Connection\HiveConnectionFactory;
-use Keboola\DbWriter\Exception\UserException;
+use Keboola\DbWriter\Tests\Traits\ConnectionFactoryTrait;
 use Keboola\DbWriter\Tests\Traits\CreateApplicationTrait;
+use Keboola\DbWriter\Tests\Traits\DefaultConfigTrait;
 use Keboola\DbWriter\Tests\Traits\SshKeysTrait;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Process\Process;
@@ -16,16 +16,15 @@ class GetTablesInfoTest extends TestCase
 {
     use CreateApplicationTrait;
     use SshKeysTrait;
-
-    private Connection $db;
+    use DefaultConfigTrait;
+    use ConnectionFactoryTrait;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $connectionFactory = new HiveConnectionFactory();
-        $this->db = $connectionFactory->createConnection($this->getConfig()['parameters']['db']);
-        $this->db->query('CREATE TEMPORARY TABLE product (product_name string, price double, comment string)');
-        $this->db->query(
+        $connection = $this->createConnection();
+        $connection->query('CREATE TEMPORARY TABLE product (product_name string, price double, comment string)');
+        $connection->query(
             'CREATE TEMPORARY TABLE special_types (' .
             'id int, bin binary, ' .
             '`map` Map<int, string>, ' .
@@ -44,7 +43,7 @@ class GetTablesInfoTest extends TestCase
 
     public function testSuccessfullyRun(): void
     {
-        $config = $this->getConfig();
+        $config = $this->getDefaultConfig();
         $config['action'] = 'getTablesInfo';
         $result = json_decode($this->createApplication($config)->run(), true);
         $this->assertEquals([
@@ -102,20 +101,5 @@ class GetTablesInfoTest extends TestCase
                 ],
             ],
         ], $result);
-    }
-
-    private function getConfig(): array
-    {
-        return [
-            'parameters' => [
-                'db' => [
-                    'host' => getenv('HIVE_DB_HOST'),
-                    'port' => (int) getenv('HIVE_DB_PORT'),
-                    'database' => getenv('HIVE_DB_DATABASE'),
-                    'user' => getenv('HIVE_DB_USER'),
-                    '#password' => getenv('HIVE_DB_PASSWORD'),
-                ],
-            ],
-        ];
     }
 }

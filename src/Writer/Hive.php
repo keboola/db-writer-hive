@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Keboola\DbWriter\Writer;
 
-use Exception;
 use Generator;
 use Keboola\DbWriter\Connection\HiveConnectionFactory;
 use Keboola\DbWriter\Exception\UserException;
@@ -66,7 +65,7 @@ class Hive extends Writer
         $columns = array_filter($table['items'], fn(array $item) => strtolower($item['type']) !== 'ignore');
         $columnsCount = count($columns);
         $columnsDbNames = array_map(fn($item) => $item['dbName'], $columns);
-        $rowsPerInsert = intval((3000 / $columnsCount) - 1);
+        $rowsPerInsert = intval((3000 / $columnsCount) - 1) ?: 1;
 
         // Insert
         $iterator = new NoRewindIterator($csv);
@@ -74,7 +73,7 @@ class Hive extends Writer
         while ($iterator->current()) {
             $csvRows = new LimitIterator($iterator, 0, $rowsPerInsert);
             $sqlRows = implode(', ', iterator_to_array($this->mapCsvRows($csvHeader, $csvRows, $columns)));
-            $this->db->query('INSERT INTO %n (%n) VALUES %sql', $table, $columnsDbNames, $sqlRows);
+            $this->db->query('INSERT INTO %n (%n) VALUES %sql', $table['dbName'], $columnsDbNames, $sqlRows);
         }
     }
 
@@ -185,8 +184,8 @@ class Hive extends Writer
         // See: https://issues.apache.org/jira/browse/HIVE-6905
         $hasSize = !empty($column['size']) && in_array($column['type'], self::$typesWithSize);
         return $hasSize ?
-            $this->db->translate('%n (%sql)', $column['dbName'], $column['type']) :
-            $this->db->translate('%n');
+            $this->db->translate('%n %sql(%sql)', $column['dbName'], $column['type'], $column['size']) :
+            $this->db->translate('%n %sql', $column['dbName'], $column['type']);
     }
 
     private function mapCsvRows(array &$csvHeader, iterable $csvRows, array $columns): Generator
