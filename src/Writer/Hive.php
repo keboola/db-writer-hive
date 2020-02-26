@@ -84,20 +84,69 @@ class Hive extends Writer
 
     public function create(array $table): void
     {
-        // Hive DB doesn't support PK, FK, NOT NULL, default ...
-        // See: https://issues.apache.org/jira/browse/HIVE-6905
+        // For incremental write (MERGE operation) is required to set CLUSTERED BY & transactional
+        // See: https://sanjivblogs.blogspot.com/2014/12/transactions-are-available-in-hive-014.html
+        $tableSpec = [];
+        if (!empty($table['primaryKey'])) {
+            $tableSpec[] = $this->db->translate(
+                "CLUSTERED BY (%n) INTO 1 BUCKETS STORED AS orc TBLPROPERTIES('transactional'='true')",
+                $table['primaryKey'],
+            );
+        }
+
+        // Columns are ordered according CSV header, see Application::reorderColumns
         $columns = array_filter($table['items'], fn(array $item) => strtolower($item['type']) !== 'ignore');
         $columnsDefs = array_map(fn($column) => $this->createColumnDef($column), $columns);
         $this->db->query(
-            "CREATE TABLE %n (%sql) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' ESCAPED BY '\\\\'",
+            'CREATE TABLE %n (%sql) %sql',
             $table['dbName'],
             implode(', ', $columnsDefs),
+            implode(' ', $tableSpec),
         );
     }
 
     public function upsert(array $table, string $targetTable): void
     {
-        // TODO: Implement upsert() method.
+        try {
+            $startTime = microtime(true);
+            $this->logger->info('Begin UPSERT');
+            $sourceTable = $table['dbName'];
+
+            $columns = array_filter($table['items'], fn($item) => strtolower($item['type']) !== 'ignore');
+            $columnsDbNames = array_map(fn($item) => $item['dbName'], $columns);
+
+            // Hive DB doesn't support UPDATE with JOIN, but has special MERGE operation
+            if (!empty($table['primaryKey'])) {
+                $joinClause = implode(' AND ', array_map(
+                    fn($col) => $this->db->translate('trg.%n=src.%n', $col, $col),
+                    $table['primaryKey']
+                ));
+                $insertCols = implode(', ', array_map(
+                    fn($col) => $this->db->translate('src.%n', $col),
+                    $columnsDbNames
+                ));
+                $updateCols = implode(', ', array_map(
+                    fn($col) => $this->db->translate('%n=src.%n', $col, $col),
+                    array_diff($columnsDbNames, $table['primaryKey'])
+                ));
+
+                // Update existing data and insert new
+                $query =
+                    'MERGE INTO %n trg USING %n src ON %sql ' .
+                    'WHEN MATCHED THEN UPDATE SET %sql ' .
+                    'WHEN NOT MATCHED THEN INSERT VALUES (%sql)';
+                $this->db->query($query, $targetTable, $sourceTable, $joinClause, $updateCols, $insertCols);
+            } else {
+                // Insert new data
+                $this->db->query('INSERT INTO %n (%n) SELECT * FROM %n', $targetTable, $columnsDbNames, $sourceTable);
+            }
+
+            $endTime = microtime(true);
+            $this->logger->info(sprintf('Finished UPSERT after %s seconds', intval($endTime - $startTime)));
+        } finally {
+            // Drop temp table
+            $this->drop($table['dbName']);
+        }
     }
 
     public function tableExists(string $tableName): bool
@@ -156,7 +205,7 @@ class Hive extends Writer
                 ));
             }
 
-            if ($targetDataType !== strtolower($column['type'])) {
+            if (strtolower($targetDataType) !== strtolower($column['type'])) {
                 throw new UserException(sprintf(
                     'Data type mismatch. Column "%s" is of type "%s" in writer, but is "%s" in destination table "%s"',
                     $column['dbName'],

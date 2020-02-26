@@ -7,14 +7,14 @@ namespace Keboola\DbWriter\FunctionalTests;
 use Dibi\Connection;
 use Dibi\Row;
 use Keboola\Csv\CsvFile;
-use Keboola\DatadirTests\DatadirTestCase;
+use Keboola\DatadirTests\AbstractDatadirTestCase;
+use Keboola\DatadirTests\DatadirTestSpecificationInterface;
 use Keboola\DbWriter\Tests\Traits\ConnectionFactoryTrait;
 use Keboola\DbWriter\Tests\Traits\DefaultConfigTrait;
 use Keboola\DbWriter\Tests\Traits\SshKeysTrait;
 use Symfony\Component\Filesystem\Filesystem;
-use Symfony\Component\Process\Process;
 
-class DatadirTest extends DatadirTestCase
+class DatadirTest extends AbstractDatadirTestCase
 {
     use DefaultConfigTrait;
     use ConnectionFactoryTrait;
@@ -25,32 +25,60 @@ class DatadirTest extends DatadirTestCase
         'OUTPUTFORMAT', 'LOCATION', 'TBLPROPERTIES',
      ];
 
+    protected Connection $db;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->db = $this->createConnection();
+    }
+
     protected function tearDown(): void
     {
         parent::tearDown();
-
-        // Drop all tables
-        $connection = $this->createConnection();
-        $tables = array_map(fn($item) => $item['name'], $connection->getDriver()->getReflector()->getTables());
-        foreach ($tables as $table) {
-            $connection->query('DROP TABLE %n', $table);
-        }
+        $this->dropAllTables();
     }
 
-    protected function runScript(string $datadirPath): Process
+    /**
+     * @dataProvider provideDatadirSpecifications
+     */
+    public function testDatadir(DatadirTestSpecificationInterface $specification): void
     {
-        try {
-            return parent::runScript($datadirPath);
-        } finally {
-            // Dump database data & metadata after running the script
-            $this->dumpAllTables($datadirPath);
+        $tempDatadir = $this->getTempDatadir($specification);
+
+        // Setup initial db state
+        $this->setupDb($tempDatadir->getTmpFolder());
+
+        $process = $this->runScript($tempDatadir->getTmpFolder());
+
+        // Dump database data & create statement after running the script
+        $this->dumpAllTables($tempDatadir->getTmpFolder());
+
+        $this->assertMatchesSpecification($specification, $process, $tempDatadir->getTmpFolder());
+    }
+
+    protected function dropAllTables(): void
+    {
+        // Drop all tables
+        $tables = array_map(fn($item) => $item['name'], $this->db->getDriver()->getReflector()->getTables());
+        foreach ($tables as $table) {
+            $this->db->query('DROP TABLE %n', $table);
         }
     }
 
-    protected function dumpAllTables(string $datadirPath): void
+    protected function setupDb(string $tmpDir): void
+    {
+        $this->dropAllTables();
+        $setupFile = $tmpDir . '/setup.sql';
+        if (file_exists($setupFile)) {
+            $this->db->loadFile($setupFile);
+        }
+    }
+
+    protected function dumpAllTables(string $tmpDir): void
     {
         // Create output dir
-        $dumpDir = $datadirPath . '/out/db-dump';
+        $dumpDir = $tmpDir . '/out/db-dump';
         $fs = new Filesystem();
         $fs->mkdir($dumpDir, 0777);
 
@@ -58,12 +86,11 @@ class DatadirTest extends DatadirTestCase
         $connection = $this->createConnection();
         $tables = array_map(fn($item) => $item['name'], $connection->getDriver()->getReflector()->getTables());
         foreach ($tables as $table) {
-            $this->dumpCreateStatement($connection, $table, $dumpDir);
-            $this->dumpTableData($connection, $table, $dumpDir);
+            $this->dumpTable($connection, $table, $dumpDir);
         }
     }
 
-    protected function dumpCreateStatement(Connection $connection, string $table, string $dumpDir): void
+    protected function dumpTable(Connection $connection, string $table, string $dumpDir): void
     {
         // Generate create statement
         $createStm = implode("\n", array_map(
@@ -77,15 +104,32 @@ class DatadirTest extends DatadirTestCase
             $createStm = preg_replace($pattern, '', $createStm);
         }
 
+        // Match CLUSTERED BY (...) for "order by" table dump
+        preg_match('~CLUSTERED\s+BY\s+\(\s*(.+)\s*\)~i', $createStm, $m);
+        $clusteredBy = $m[1] ?? null;
+
         // Normalize
         $createStm = trim($createStm) . "\n";
 
-        // Save
+        // Skip temporary tables created by us or by db engine
+        // https://community.cloudera.com/t5/Support-Questions/Hive-Temporary-table-created-automatically/td-p/140209
+        if (strpos($createStm, 'CREATE TEMPORARY TABLE') !== false) {
+            return;
+        }
+
+        // Save create statement
         file_put_contents(sprintf('%s/%s.create.sql', $dumpDir, $table), $createStm);
+
+        // Dump data
+        $this->dumpTableData($connection, $table, $dumpDir, $clusteredBy);
     }
 
-    protected function dumpTableData(Connection $connection, string $table, string $dumpDir): void
-    {
+    protected function dumpTableData(
+        Connection $connection,
+        string $table,
+        string $dumpDir,
+        ?string $orderBy = null
+    ): void {
         $csv = new CsvFile(sprintf('%s/%s.data.csv', $dumpDir, $table));
 
         // Write header
@@ -95,7 +139,8 @@ class DatadirTest extends DatadirTestCase
         ));
 
         // Write data
-        $data = $connection->query('SELECT * FROM %n', $table);
+        $orderBySql = $orderBy ? 'ORDER BY ' . $orderBy : '';
+        $data = $connection->query('SELECT * FROM %n %sql', $table, $orderBySql);
         foreach ($data as $row) {
             assert($row instanceof Row);
             $csv->writeRow($row->toArray());

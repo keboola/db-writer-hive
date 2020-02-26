@@ -31,7 +31,16 @@ while (true) {
 
         // Query
         $connection->query('SELECT 1');
+
+        // Drop all tables
+        $tables = array_map(fn($item) => $item['name'], $connection->getDriver()->getReflector()->getTables());
+        foreach ($tables as $table) {
+            $connection->query('DROP TABLE %n', $table);
+        }
+
+        // Disconnect
         $connection->disconnect();
+        sleep(1);
 
         echo " OK\n";
         break;

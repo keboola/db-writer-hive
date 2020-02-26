@@ -6,4 +6,4 @@ parameters:
         - src/Configuration/HiveActionConfigRowDefinition.php
     ignoreErrors:
         - '#function preg_replace expects array\|string, string\|null given.#'
-        - '#trim expects string, string\|null given.#'
+        - '#expects string, string\|null given.#'
