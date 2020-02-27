@@ -225,6 +225,15 @@ class Hive extends Writer
 
     private function createColumnDef(array $column): string
     {
+        // Check if type is allowed
+        if (!in_array(strtolower($column['type']), self::getAllowedTypes(), true)) {
+            throw new UserException(sprintf(
+                'Column "%s" is of type "%s" in writer configuration, but this type is not supported.',
+                $column['dbName'],
+                $column['type'],
+            ));
+        }
+
         // Hive DB doesn't support PK, FK, NOT NULL, default ...
         // See: https://issues.apache.org/jira/browse/HIVE-6905
         $hasSize = !empty($column['size']) && in_array($column['type'], self::$typesWithSize);
