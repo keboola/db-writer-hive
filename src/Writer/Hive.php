@@ -98,7 +98,8 @@ class Hive extends Writer
         $columns = array_filter($table['items'], fn(array $item) => strtolower($item['type']) !== 'ignore');
         $columnsDefs = array_map(fn($column) => $this->createColumnDef($column), $columns);
         $this->db->query(
-            'CREATE TABLE %n (%sql) %sql',
+            'CREATE %sql TABLE %n (%sql) %sql',
+            !empty($table['temporary']) ? 'TEMPORARY' : '',
             $table['dbName'],
             implode(', ', $columnsDefs),
             implode(' ', $tableSpec),
@@ -107,46 +108,41 @@ class Hive extends Writer
 
     public function upsert(array $table, string $targetTable): void
     {
-        try {
-            $startTime = microtime(true);
-            $this->logger->info('Begin UPSERT');
-            $sourceTable = $table['dbName'];
+        $startTime = microtime(true);
+        $this->logger->info('Begin UPSERT');
+        $sourceTable = $table['dbName'];
 
-            $columns = array_filter($table['items'], fn($item) => strtolower($item['type']) !== 'ignore');
-            $columnsDbNames = array_map(fn($item) => $item['dbName'], $columns);
+        $columns = array_filter($table['items'], fn($item) => strtolower($item['type']) !== 'ignore');
+        $columnsDbNames = array_map(fn($item) => $item['dbName'], $columns);
 
-            // Hive DB doesn't support UPDATE with JOIN, but has special MERGE operation
-            if (!empty($table['primaryKey'])) {
-                $joinClause = implode(' AND ', array_map(
-                    fn($col) => $this->db->translate('trg.%n=src.%n', $col, $col),
-                    $table['primaryKey']
-                ));
-                $insertCols = implode(', ', array_map(
-                    fn($col) => $this->db->translate('src.%n', $col),
-                    $columnsDbNames
-                ));
-                $updateCols = implode(', ', array_map(
-                    fn($col) => $this->db->translate('%n=src.%n', $col, $col),
-                    array_diff($columnsDbNames, $table['primaryKey'])
-                ));
+        // Hive DB doesn't support UPDATE with JOIN, but has special MERGE operation
+        if (!empty($table['primaryKey'])) {
+            $joinClause = implode(' AND ', array_map(
+                fn($col) => $this->db->translate('trg.%n=src.%n', $col, $col),
+                $table['primaryKey']
+            ));
+            $insertCols = implode(', ', array_map(
+                fn($col) => $this->db->translate('src.%n', $col),
+                $columnsDbNames
+            ));
+            $updateCols = implode(', ', array_map(
+                fn($col) => $this->db->translate('%n=src.%n', $col, $col),
+                array_diff($columnsDbNames, $table['primaryKey'])
+            ));
 
-                // Update existing data and insert new
-                $query =
-                    'MERGE INTO %n trg USING %n src ON %sql ' .
-                    'WHEN MATCHED THEN UPDATE SET %sql ' .
-                    'WHEN NOT MATCHED THEN INSERT VALUES (%sql)';
-                $this->db->query($query, $targetTable, $sourceTable, $joinClause, $updateCols, $insertCols);
-            } else {
-                // Insert new data
-                $this->db->query('INSERT INTO %n (%n) SELECT * FROM %n', $targetTable, $columnsDbNames, $sourceTable);
-            }
-
-            $endTime = microtime(true);
-            $this->logger->info(sprintf('Finished UPSERT after %s seconds', intval($endTime - $startTime)));
-        } finally {
-            // Drop temp table
-            $this->drop($table['dbName']);
+            // Update existing data and insert new
+            $query =
+                'MERGE INTO %n trg USING %n src ON %sql ' .
+                'WHEN MATCHED THEN UPDATE SET %sql ' .
+                'WHEN NOT MATCHED THEN INSERT VALUES (%sql)';
+            $this->db->query($query, $targetTable, $sourceTable, $joinClause, $updateCols, $insertCols);
+        } else {
+            // Insert new data
+            $this->db->query('INSERT INTO %n (%n) SELECT * FROM %n', $targetTable, $columnsDbNames, $sourceTable);
         }
+
+        $endTime = microtime(true);
+        $this->logger->info(sprintf('Finished UPSERT after %s seconds', intval($endTime - $startTime)));
     }
 
     public function tableExists(string $tableName): bool

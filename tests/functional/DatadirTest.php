@@ -9,6 +9,7 @@ use Dibi\Row;
 use Keboola\Csv\CsvFile;
 use Keboola\DatadirTests\AbstractDatadirTestCase;
 use Keboola\DatadirTests\DatadirTestSpecificationInterface;
+use Keboola\DatadirTests\DatadirTestsProviderInterface;
 use Keboola\DbWriter\Tests\Traits\ConnectionFactoryTrait;
 use Keboola\DbWriter\Tests\Traits\DefaultConfigTrait;
 use Keboola\DbWriter\Tests\Traits\SshKeysTrait;
@@ -55,6 +56,16 @@ class DatadirTest extends AbstractDatadirTestCase
         $this->dumpAllTables($tempDatadir->getTmpFolder());
 
         $this->assertMatchesSpecification($specification, $process, $tempDatadir->getTmpFolder());
+    }
+
+    /**
+     * @return DatadirTestsProviderInterface[]
+     */
+    protected function getDataProviders(): array
+    {
+        return [
+            new DatadirTestsProvider($this->getTestFileDir()),
+        ];
     }
 
     protected function dropAllTables(): void

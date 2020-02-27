@@ -1,0 +1,28 @@
+{
+  "parameters": {
+    "db": {
+      "host": "hive-server",
+      "port": 10000,
+      "database": "default",
+      "user": "admin",
+      "#password": "p#a!s@sw:o&r%^d"
+    },
+    "tableId": "users",
+    "dbName": "users",
+    "incremental": true,
+    "primaryKey": ["id"],
+    "items": [
+      {
+        "name": "id",
+        "dbName": "id",
+        "type": "int"
+      },
+      {
+        "name": "name",
+        "dbName": "name",
+        "type": "varchar",
+        "size": 255
+      }
+    ]
+  }
+}

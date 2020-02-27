@@ -1,6 +1,7 @@
 parameters:
     checkMissingIterableValueType: false
     excludes_analyse:
+        - tests/functional/DatadirTestsProvider.php
         - src/run.php
         - src/Configuration/HiveConfigRowDefinition.php
         - src/Configuration/HiveActionConfigRowDefinition.php

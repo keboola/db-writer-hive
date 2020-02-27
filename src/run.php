@@ -22,7 +22,9 @@ try {
             JsonEncoder::FORMAT
         );
     } else {
-        throw new UserException('Configuration file not found.');
+        $e = new UserException('Configuration file not found.');
+        $logger->error($e->getMessage());
+        throw $e;
     }
 
     $app = new HiveApplication($config, $logger, $dataFolder);
@@ -33,7 +35,8 @@ try {
     echo $app->run();
     exit(0);
 } catch (UserException $e) {
-    $logger->error($e->getMessage());
+    // Exception is already logged in Application class
+    // $logger->error($e->getMessage());
     exit(1);
 } catch (\Throwable $e) {
     $logger->critical(
