@@ -2,19 +2,41 @@
 
 declare(strict_types=1);
 
-use Keboola\Component\UserException;
-use Keboola\Component\Logger;
-use MyComponent\Component;
+use Keboola\DbWriter\Exception\UserException;
+use Keboola\DbWriter\Logger;
+use Keboola\DbWriter\HiveApplication;
+use Monolog\Handler\NullHandler;
+use Symfony\Component\Serializer\Encoder\JsonEncoder;
+use Symfony\Component\Serializer\Encoder\JsonDecode;
 
 require __DIR__ . '/../vendor/autoload.php';
 
-$logger = new Logger();
+$logger = new Logger('wr-db-hive');
+$jsonDecode = new JsonDecode([JsonDecode::ASSOCIATIVE => true]);
+
 try {
-    $app = new Component($logger);
-    $app->execute();
+    $dataFolder = getenv('KBC_DATADIR') === false ? '/data/' : (string) getenv('KBC_DATADIR');
+    if (file_exists($dataFolder . '/config.json')) {
+        $config = $jsonDecode->decode(
+            (string) file_get_contents($dataFolder . '/config.json'),
+            JsonEncoder::FORMAT
+        );
+    } else {
+        $e = new UserException('Configuration file not found.');
+        $logger->error($e->getMessage());
+        throw $e;
+    }
+
+    $app = new HiveApplication($config, $logger, $dataFolder);
+    if ($app['action'] !== 'run') {
+        $app['logger']->setHandlers(array(new NullHandler(Logger::INFO)));
+    }
+
+    echo $app->run();
     exit(0);
 } catch (UserException $e) {
-    $logger->error($e->getMessage());
+    // Exception is already logged in Application class
+    // $logger->error($e->getMessage());
     exit(1);
 } catch (\Throwable $e) {
     $logger->critical(
