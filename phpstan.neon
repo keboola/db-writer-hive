@@ -6,5 +6,7 @@ parameters:
         - src/Configuration/HiveConfigRowDefinition.php
         - src/Configuration/HiveActionConfigRowDefinition.php
     ignoreErrors:
+        - '#invalid type \(array\|null\) supplied for foreach#'
         - '#function preg_replace expects array\|string, string\|null given.#'
         - '#expects string, string\|null given.#'
+        - '#preg_replace_callback expects array\|string, string\|false given#'

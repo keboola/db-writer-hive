@@ -6,6 +6,7 @@ namespace Keboola\DbWriter\Writer;
 
 use Generator;
 use Keboola\DbWriter\Connection\HiveConnectionFactory;
+use Keboola\DbWriter\Connection\HiveOdbcReflector;
 use Keboola\DbWriter\Exception\UserException;
 use NoRewindIterator;
 use LimitIterator;
@@ -21,7 +22,7 @@ class Hive extends Writer
         'bigint', 'boolean', 'char', 'decimal',
         'double', 'float', 'int', 'real',
         'smallint', 'string', 'timestamp',
-        'tinyint', 'varchar',
+        'tinyint', 'varchar', 'binary',
     ];
 
     private static array $typesWithSize = [
@@ -60,20 +61,43 @@ class Hive extends Writer
 
     public function write(CsvFile $csv, array $table): void
     {
-        // Prepare data
+        // CSV metadata
         $csvHeader = $csv->getHeader();
-        $columns = array_filter($table['items'], fn(array $item) => strtolower($item['type']) !== 'ignore');
-        $columnsCount = count($columns);
-        $columnsDbNames = array_map(fn($item) => $item['dbName'], $columns);
+        $columnsDef = array_filter($table['items'], fn(array $item) => strtolower($item['type']) !== 'ignore');
+
+        // Map column db name => column index in CSV row
+        $csvColumnIndexMap = [];
+        foreach ($csvHeader as $csvColumnIndex => $csvName) {
+            foreach ($columnsDef as $column) {
+                if ($column['name'] === $csvName) {
+                    $csvColumnIndexMap[$column['dbName']] = $csvColumnIndex;
+                }
+            }
+        }
+
+        // Get table metadata
+        $tableColumns = array_map(
+            fn($item) => $item['name'],
+            $this->db->getDriver()->getReflector()->getColumns($table['dbName'])
+        );
+
+        // Calculate bulk size
+        $columnsCount = count($columnsDef);
         $rowsPerInsert = max(intval((3000 / $columnsCount) - 1), 1);
 
-        // Insert
+        // All columns must be provided in the right order - as defined in the table, it is Hive DB limitation.
+        // The standard SQL syntax that allows the user to insert values into only some columns is not yet supported.
+        // See: https://cwiki.apache.org/confluence/display/Hive/LanguageManual+DML#LanguageManualDML-Syntax.3
         $iterator = new NoRewindIterator($csv);
         $iterator->next(); // skip header
         while ($iterator->current()) {
             $csvRows = new LimitIterator($iterator, 0, $rowsPerInsert);
-            $sqlRows = implode(', ', iterator_to_array($this->mapCsvRows($csvHeader, $csvRows, $columns)));
-            $this->db->query('INSERT INTO %n (%n) VALUES %sql', $table['dbName'], $columnsDbNames, $sqlRows);
+            $insertSql = $this->db->translate('INSERT INTO %n VALUES', $table['dbName']);
+            $valuesSql = implode(', ', iterator_to_array(
+                $this->mapCsvRows($tableColumns, $csvColumnIndexMap, $csvRows)
+            ));
+            // Parts of SQL query are escaped separately
+            $this->db->nativeQuery($insertSql . ' ' . $valuesSql);
         }
     }
 
@@ -84,14 +108,28 @@ class Hive extends Writer
 
     public function create(array $table): void
     {
+        $requiredMergeOperation = !empty($table['incremental']) && !empty($table['primaryKey']);
+        if ($requiredMergeOperation) {
+            $reflector = $this->db->getDriver()->getReflector();
+            assert($reflector instanceof HiveOdbcReflector);
+            if (!$reflector->isMergeSupported()) {
+                throw new UserException(
+                    'MERGE operation is not supported in current Hive DB version. ' .
+                    'Support is required for incremental write if is used primaryKey option.'
+                );
+            }
+        }
+
         // For incremental write (MERGE operation) is required to set CLUSTERED BY and transactional = true
         // See: https://sanjivblogs.blogspot.com/2014/12/transactions-are-available-in-hive-014.html
         $tableSpec = [];
-        if (!empty($table['primaryKey'])) {
+        if ($requiredMergeOperation && empty($table['temporary'])) {
             $tableSpec[] = $this->db->translate(
                 "CLUSTERED BY (%n) INTO 1 BUCKETS STORED AS orc TBLPROPERTIES('transactional'='true')",
                 $table['primaryKey'],
             );
+        } else {
+            $tableSpec[] = 'STORED AS orc';
         }
 
         // Columns are ordered according CSV header, see Application::reorderColumns
@@ -112,37 +150,55 @@ class Hive extends Writer
         $this->logger->info('Begin UPSERT');
         $sourceTable = $table['dbName'];
 
-        $columns = array_filter($table['items'], fn($item) => strtolower($item['type']) !== 'ignore');
-        $columnsDbNames = array_map(fn($item) => $item['dbName'], $columns);
+        $columnsDef = array_filter($table['items'], fn($item) => strtolower($item['type']) !== 'ignore');
+        $columns = array_map(fn($item) => $item['dbName'], $columnsDef);
 
         // Hive DB doesn't support UPDATE with JOIN, but has special MERGE operation
         if (!empty($table['primaryKey'])) {
-            $joinClause = implode(' AND ', array_map(
-                fn($col) => $this->db->translate('trg.%n=src.%n', $col, $col),
-                $table['primaryKey']
-            ));
-            $insertCols = implode(', ', array_map(
-                fn($col) => $this->db->translate('src.%n', $col),
-                $columnsDbNames
-            ));
-            $updateCols = implode(', ', array_map(
-                fn($col) => $this->db->translate('%n=src.%n', $col, $col),
-                array_diff($columnsDbNames, $table['primaryKey'])
-            ));
-
-            // Update existing data and insert new
-            $query =
-                'MERGE INTO %n trg USING %n src ON %sql ' .
-                'WHEN MATCHED THEN UPDATE SET %sql ' .
-                'WHEN NOT MATCHED THEN INSERT VALUES (%sql)';
-            $this->db->query($query, $targetTable, $sourceTable, $joinClause, $updateCols, $insertCols);
+            $this->upsertDoMerge($sourceTable, $targetTable, $table['primaryKey'], $columns);
         } else {
-            // Insert new data
-            $this->db->query('INSERT INTO %n (%n) SELECT * FROM %n', $targetTable, $columnsDbNames, $sourceTable);
+            $this->upsertDoInsert($sourceTable, $targetTable, $columns);
         }
 
         $endTime = microtime(true);
         $this->logger->info(sprintf('Finished UPSERT after %s seconds', intval($endTime - $startTime)));
+    }
+
+    protected function upsertDoMerge(string $sourceTable, string $targetTable, array $primaryKey, array $columns): void
+    {
+        $joinClause = implode(' AND ', array_map(
+            fn($col) => $this->db->translate('trg.%n=src.%n', $col, $col),
+            $primaryKey
+        ));
+        $insertCols = implode(', ', array_map(
+            fn($col) => $this->db->translate('src.%n', $col),
+            $columns
+        ));
+        $updateCols = implode(', ', array_map(
+            fn($col) => $this->db->translate('%n=src.%n', $col, $col),
+            array_diff($columns, $primaryKey) // primary key cannot be updated in Hive DB
+        ));
+
+        // Update existing data and insert new
+        $query =
+            'MERGE INTO %n trg USING %n src ON %sql ' .
+            'WHEN MATCHED THEN UPDATE SET %sql ' .
+            'WHEN NOT MATCHED THEN INSERT VALUES (%sql)';
+        $this->db->query($query, $targetTable, $sourceTable, $joinClause, $updateCols, $insertCols);
+    }
+
+    protected function upsertDoInsert(string $sourceTable, string $targetTable, array $columns): void
+    {
+        // All columns must be provided in the right order - as defined in the table, Hive DB limitation
+        // ... so for column that exists in target table, but not exists in source table (and configuration)
+        // ... we must select null value
+        $columnsMapping = implode(', ', array_map(
+            fn($col) => in_array($col['name'], $columns, true) ?
+                $this->db->translate('%n', $col['name']) : 'null',
+            $this->db->getDriver()->getReflector()->getColumns($targetTable),
+        ));
+
+        $this->db->query('INSERT INTO %n SELECT %sql FROM %n', $targetTable, $columnsMapping, $sourceTable);
     }
 
     public function tableExists(string $tableName): bool
@@ -242,23 +298,22 @@ class Hive extends Writer
             $this->db->translate('%n %sql', $column['dbName'], $column['type']);
     }
 
-    private function mapCsvRows(array &$csvHeader, iterable $csvRows, array $columns): Generator
+    private function mapCsvRows(array &$tableColumns, array &$csvColumnIndexMap, iterable $csvRows): Generator
     {
-        foreach ($csvRows as $rowValues) {
-            $row = array_combine($csvHeader, $rowValues);
-            assert(is_array($row));
-            yield $this->db->translate('%l', iterator_to_array($this->mapCsvRow($row, $columns)));
+        foreach ($csvRows as $row) {
+            yield $this->db->translate(
+                '%l',
+                iterator_to_array($this->mapCsvRow($tableColumns, $csvColumnIndexMap, $row))
+            );
         };
     }
 
-    private function mapCsvRow(iterable $data, array $columns): Generator
+    private function mapCsvRow(array &$tableColumns, array &$csvColumnIndexMap, array $row): Generator
     {
-        foreach ($data as $key => $value) {
-            foreach ($columns as $column) {
-                if ($column['name'] === $key) {
-                    yield $value;
-                }
-            }
+        // All columns must be provided in the right order - as defined in the table, Hive DB limitation
+        foreach ($tableColumns as $colDbName) {
+            $csvColumnIndex = $csvColumnIndexMap[$colDbName] ?? null;
+            yield $csvColumnIndex === null ? null : $row[$csvColumnIndex];
         }
     }
 }
