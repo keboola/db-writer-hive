@@ -3,14 +3,15 @@ services:
   tests: &tests
     build: .
     image: keboola-component-db-writer-hive
-    command: bash
+    command: composer ci
     environment:
       # Db credentials
-      HIVE_DB_HOST: hive-server
-      HIVE_DB_PORT: 10000
-      HIVE_DB_DATABASE: default
-      HIVE_DB_USER: admin
-      HIVE_DB_PASSWORD: p#a!s@sw:o&r%^d
+      HIVE_DB_HOST: ${HIVE_DB_HOST}
+      HIVE_DB_PORT: ${HIVE_DB_PORT}
+      HIVE_DB_DATABASE: ${HIVE_DB_DATABASE}
+      HIVE_DB_USER: ${HIVE_DB_USER}
+      HIVE_DB_PASSWORD: ${HIVE_DB_PASSWORD} # defined in docker/ldap/init/01-hive-user.ldif
+      HIVE_VERSION: ${HIVE_VERSION}
       # SSH container credentials
       SSH_DB_HOST: hive-server-behind-ssh
       SSH_HOST: ssh-tunnel
@@ -24,6 +25,7 @@ services:
 
   dev:
     <<: *tests
+    command: bash
     volumes:
       - ./:/code
       - ssh-keys:/root/.ssh:ro
@@ -35,7 +37,7 @@ services:
       - ssh-tunnel
     environment:
       - TARGETS=hive-server:10000,ssh-tunnel:22
-      - TIMEOUT=120
+      - TIMEOUT=200
 
   # SSH tunnel
   ssh-tunnel:
@@ -46,7 +48,8 @@ services:
       - hive-server:hive-server-behind-ssh
 
   # LDAP authentication server for Hive (external auth must be provided)
-  # Test cmd: docker-compose exec ldap ldapsearch -x -H ldap://localhost -b dc=keboola-test,dc=com -D "cn=admin,dc=keboola-test,dc=com" -w 'p#a!s@sw:o&r%^d'
+  # Test cmd: docker-compose exec ldap ldapsearch -x -H ldap://localhost -b dc=keboola-test,dc=com -D "uid=admin,dc=keboola-test,dc=com" -w 'admin'
+  # Modify command: docker-compose exec ldap ldapmodify -H ldap://localhost -D "uid=admin,dc=keboola-test,dc=com" -w 'admin'
   ldap:
     image: osixia/openldap:1.3.0-amd64
     command: --copy-service
@@ -54,57 +57,93 @@ services:
       LDAP_TLS: 'false'
       LDAP_ORGANISATION: Keboola Test
       LDAP_DOMAIN: keboola-test.com
-      LDAP_ADMIN_PASSWORD: p#a!s@sw:o&r%^d
+      LDAP_ADMIN_PASSWORD: admin
+    volumes:
+      # LDAP initialization files
+      - ./docker/ldap/init:/container/service/slapd/assets/config/bootstrap/ldif/custom:ro
 
   # Hive infrastructure
   # From: https://github.com/big-data-europe/docker-hive/blob/master/docker-compose.yml
-  # Test cmd: docker-compose exec hive-server beeline -u jdbc:hive2://localhost:10000 -n admin -p 'p#a!s@sw:o&r%^d' -e "SHOW TABLES;"
+  # Test cmd: docker-compose exec hive-server beeline -u jdbc:hive2://localhost:10000 -n hive -p 'p#a!s@sw:o&r%^d' -e "SHOW TABLES;"
   hive-server:
-    image: bde2020/hive:2.3.2-postgresql-metastore
+    image: hive-server
+    build:
+      context: ${HIVE_SERVER_IMAGE_DIR}
+      args:
+        HIVE_VERSION: ${HIVE_VERSION}
     env_file:
-      - docker/hive-env/hadoop-hive.env
+      - ${HIVE_SERVER_IMAGE_DIR}/hadoop-hive.env
     environment:
-      # Credentials for docker/hive-server/custom-init.sh (same as in ldap server)
-      HIVE_DB_USER: admin
-      HIVE_DB_PASSWORD: p#a!s@sw:o&r%^d
-      HIVE_DB_PORT: 10000
-      HIVE_CORE_CONF_javax_jdo_option_ConnectionURL: "jdbc:postgresql://hive-metastore/metastore"
       SERVICE_PRECONDITION: "hive-metastore:9083"
-      HIVE_SITE_CONF_hive_server2_use_SSL: 'false'
-      HIVE_SITE_CONF_hive_server2_authentication: LDAP
-      HIVE_SITE_CONF_hive_server2_authentication_ldap_url: ldap://ldap:389
-      HIVE_SITE_CONF_hive_server2_authentication_ldap_baseDN: dc=keboola-test,dc=com
-      HIVE_SITE_CONF_hive_server2_authentication_ldap_userDNPattern: cn=%s,dc=keboola-test,dc=com
+      HIVE_DB_PORT: ${HIVE_DB_PORT}
+      HIVE_DB_DATABASE: ${HIVE_DB_DATABASE}
+      HIVE_DB_USER: ${HIVE_DB_USER}
+      HIVE_DB_PASSWORD: ${HIVE_DB_PASSWORD} # defined in docker/ldap/init/01-hive-user.ldif
     links:
       - ldap
-      - namenode
-      - datanode
-      - presto-coordinator
       - hive-metastore
       - hive-metastore-postgresql
-  namenode:
-    image: bde2020/hadoop-namenode:2.0.0-hadoop2.7.4-java8
-    environment:
-      - CLUSTER_NAME=test
-    env_file:
-      - docker/hive-env/hadoop-hive.env
-  datanode:
-    image: bde2020/hadoop-datanode:2.0.0-hadoop2.7.4-java8
-    env_file:
-      - docker/hive-env/hadoop-hive.env
-    environment:
-      SERVICE_PRECONDITION: "namenode:50070"
+      - namenode
+      - datanode
+      - resourcemanager
+      - nodemanager
+      - historyserver
   hive-metastore:
-    image: bde2020/hive:2.3.2-postgresql-metastore
+    image: hive-server
+    build:
+      context: ${HIVE_SERVER_IMAGE_DIR}
+      args:
+        HIVE_VERSION: ${HIVE_VERSION}
     env_file:
-      - docker/hive-env/hadoop-hive.env
+      - ${HIVE_SERVER_IMAGE_DIR}/hadoop-hive.env
     command: /opt/hive/bin/hive --service metastore
     environment:
-      SERVICE_PRECONDITION: "namenode:50070 datanode:50075 hive-metastore-postgresql:5432"
+      SERVICE_PRECONDITION: "hive-metastore-postgresql:5432 namenode:${HADOOP_NAMENODE_WAIT_PORT} datanode:${HADOOP_DATANODE_WAIT_PORT}"
   hive-metastore-postgresql:
-    image: bde2020/hive-metastore-postgresql:2.3.0
-  presto-coordinator:
-    image: shawnzhu/prestodb:0.181
+    image: postgres:9.5.3
+    environment:
+      POSTGRES_DB: metastore
+      POSTGRES_USER: hive
+      POSTGRES_PASSWORD: hive
+
+  # Hadoop infrastructure
+  # https://github.com/big-data-europe/docker-hadoop
+  namenode:
+    image: bde2020/hadoop-${HADOOP_NAMENODE_TAG}
+    env_file:
+      - ${HIVE_SERVER_IMAGE_DIR}/hadoop-hive.env
+    ports:
+      - "9999:9999" # Web UI for debugging
+  datanode:
+    image: bde2020/hadoop-${HADOOP_DATANODE_TAG}
+    environment:
+      SERVICE_PRECONDITION: "namenode:${HADOOP_NAMENODE_WAIT_PORT}"
+    env_file:
+      - ${HIVE_SERVER_IMAGE_DIR}/hadoop-hive.env
+  resourcemanager:
+    image: bde2020/hadoop-${HADOOP_RESOURCEMANAGER_TAG}
+    environment:
+      SERVICE_PRECONDITION: "namenode:${HADOOP_NAMENODE_WAIT_PORT} datanode:${HADOOP_DATANODE_WAIT_PORT}"
+    env_file:
+      - ${HIVE_SERVER_IMAGE_DIR}/hadoop-hive.env
+    ports:
+      - "8088:8088" # Web UI for debugging
+  nodemanager:
+    image: bde2020/hadoop-${HADOOP_NODEMANAGER_TAG}
+    environment:
+      SERVICE_PRECONDITION: "namenode:${HADOOP_NAMENODE_WAIT_PORT} datanode:${HADOOP_DATANODE_WAIT_PORT} resourcemanager:${HADOOP_RESOURCEMANAGER_WAIT_PORT}"
+    env_file:
+      - ${HIVE_SERVER_IMAGE_DIR}/hadoop-hive.env
+    ports:
+      - "8042:8042" # Web UI for debugging
+  historyserver:
+    image: bde2020/hadoop-${HADOOP_HISTORYSERVER_TAG}
+    environment:
+      SERVICE_PRECONDITION: "namenode:${HADOOP_NAMENODE_WAIT_PORT} datanode:${HADOOP_DATANODE_WAIT_PORT} resourcemanager:${HADOOP_RESOURCEMANAGER_WAIT_PORT}"
+    env_file:
+      - ${HIVE_SERVER_IMAGE_DIR}/hadoop-hive.env
+    ports:
+      - "8188:8188" # Web UI for debugging
 
 volumes:
   ssh-keys:
