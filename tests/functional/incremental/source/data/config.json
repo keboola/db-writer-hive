@@ -1,0 +1,27 @@
+{
+  "parameters": {
+    "db": {
+      "host": "${HIVE_DB_HOST}",
+      "port":  "${HIVE_DB_PORT}",
+      "database": "${HIVE_DB_DATABASE}",
+      "user": "${HIVE_DB_USER}",
+      "#password": "${HIVE_DB_PASSWORD}"
+    },
+    "tableId": "users",
+    "dbName": "users",
+    "incremental": true,
+    "items": [
+      {
+        "name": "id",
+        "dbName": "id",
+        "type": "int"
+      },
+      {
+        "name": "name",
+        "dbName": "name",
+        "type": "varchar",
+        "size": 255
+      }
+    ]
+  }
+}

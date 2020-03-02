@@ -10,6 +10,7 @@ use Keboola\Csv\CsvFile;
 use Keboola\DatadirTests\AbstractDatadirTestCase;
 use Keboola\DatadirTests\DatadirTestSpecificationInterface;
 use Keboola\DatadirTests\DatadirTestsProviderInterface;
+use Keboola\DbWriter\Connection\HiveOdbcReflector;
 use Keboola\DbWriter\Tests\Traits\ConnectionFactoryTrait;
 use Keboola\DbWriter\Tests\Traits\DefaultConfigTrait;
 use Keboola\DbWriter\Tests\Traits\SshKeysTrait;
@@ -24,7 +25,25 @@ class DatadirTest extends AbstractDatadirTestCase
     private const CREATE_STM_IGNORED_LINES = [
         'ROW FORMAT', 'WITH SERDEPROPERTIES', 'STORED AS INPUTFORMAT',
         'OUTPUTFORMAT', 'LOCATION', 'TBLPROPERTIES',
-     ];
+    ];
+
+    // Older versions of Hive DB (1.X) doesn't work well with unicode chars
+    // https://issues.apache.org/jira/browse/HIVE-15927
+    private const TESTS_REQ_UNICODE_SUPPORT = [
+        'unicode',
+    ];
+
+    // MERGE Hive DB operation is required for incremental write with PK,
+    // ... and it's supported since 2.2.0 Hive DB version
+    private const TESTS_REQ_MERGE_SUPPORT = [
+        'primary-key-incremental',
+        'primary-key-incremental-table-exists',
+    ];
+
+    // Test error message if MERGE operation is not supported
+    private const TESTS_NOT_COMP_WITH_MERGE_SUPPORT = [
+        'primary-key-incremental-not-supported',
+    ];
 
     protected Connection $db;
 
@@ -45,7 +64,36 @@ class DatadirTest extends AbstractDatadirTestCase
      */
     public function testDatadir(DatadirTestSpecificationInterface $specification): void
     {
+        $hiveVersion = getenv('HIVE_VERSION') ?: '';
+
+        // Check UNICODE support
+        if (in_array($this->dataName(), self::TESTS_REQ_UNICODE_SUPPORT, true) &&
+            $hiveVersion &&
+            version_compare($hiveVersion, '2.0.0', '<')
+        ) {
+            $this->markTestSkipped('Unicode support is required for test.');
+        }
+
+        // Check MERGE operation support
+        $reflector = $this->db->getDriver()->getReflector();
+        assert($reflector instanceof HiveOdbcReflector);
+        $mergeSupported = $reflector->isMergeSupported();
+        if (!$mergeSupported && in_array($this->dataName(), self::TESTS_REQ_MERGE_SUPPORT, true)) {
+            $this->markTestSkipped('MERGE operation support is required for test.');
+        }
+        if ($mergeSupported && in_array($this->dataName(), self::TESTS_NOT_COMP_WITH_MERGE_SUPPORT, true)) {
+            $this->markTestSkipped('MERGE operation support is not compatible with test.');
+        }
+
         $tempDatadir = $this->getTempDatadir($specification);
+
+        // Replace environment variables in config.json
+        $configPath = $tempDatadir->getTmpFolder() . '/config.json';
+        if (file_exists($configPath)) {
+            $config = file_get_contents($configPath);
+            $config = preg_replace_callback('~\$\{([^{}]+)\}~', fn($m) => getenv($m[1]), $config);
+            file_put_contents($configPath, $config);
+        }
 
         // Setup initial db state
         $this->setupDb($tempDatadir->getTmpFolder());
