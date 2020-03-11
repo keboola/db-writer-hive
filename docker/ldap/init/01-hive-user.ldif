@@ -1,0 +1,12 @@
+dn: uid=hive,dc=keboola-test,dc=com
+changetype: add
+distinguishedName: uid=hive,dc=keboola-test,dc=com
+objectClass: person
+objectclass: inetOrgPerson
+objectClass: simpleSecurityObject
+objectClass: extensibleObject
+#userPassword => p#a!s@sw:o&r%^d
+userPassword:: e1NTSEF9bXEwWVVhdWhzMTZpVUlFSC92WHFZTGxPYlRLU09wU2s=
+uid: hive
+cn: hive
+sn: hive

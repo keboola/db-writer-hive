@@ -36,4 +36,33 @@ class HiveOdbcReflector extends OdbcReflector
         odbc_free_result($res);
         return $columns;
     }
+
+    public function isMergeSupported(): bool
+    {
+
+        // Example output if MERGE operation IS NOT supported:
+        // phpcs:ignore
+        // ... Error: Error while compiling statement: FAILED: ParseException line 1:0 cannot recognize input near 'MERGE' '<EOF>' '<EOF>' (state=42000,code=40000)
+
+        // Example output if MERGE operation IS supported:
+        // phpcs:ignore
+        // Error: Error while compiling statement: FAILED: ParseException line 1:5 mismatched input '<EOF>' expecting INTO near 'MERGE' in MERGE statement (state=42000,code=40000)
+
+        try {
+            $this->driver->query('MERGE');
+        } catch (Dibi\Exception $e) {
+            if (strpos($e->getMessage(), "near 'MERGE' in MERGE statemen") === false) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public function getDbVersion(): ?string
+    {
+        $result = $this->driver->query('set system:sun.java.command');
+        $setCommandOutput = $result ? $result->fetch(false)[0] ?? null : null;
+        return HiveVersionDetector::detectVersion($setCommandOutput);
+    }
 }

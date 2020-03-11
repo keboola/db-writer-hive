@@ -5,27 +5,41 @@ language: bash
 services:
   - docker
 
+env:
+  - HIVE_VERSION=2.3.6 RUN_PUSH=true RUN_DEPLOY=true # actual stable version
+  - HIVE_VERSION=1.1.0
+  - HIVE_VERSION=1.2.0
+  - HIVE_VERSION=2.0.0
+  - HIVE_VERSION=2.1.0
+  - HIVE_VERSION=2.2.0
+  - HIVE_VERSION=2.3.0
+
+# Build
 before_script:
   - export APP_IMAGE=keboola-component-db-writer-hive
   - docker -v
   - docker-compose -v
+  - source ./set_env_vars.sh
   - docker build -t $APP_IMAGE .
+
+# Run tests
+script:
+  - docker network create hivedb # https://github.com/docker/compose/issues/229#issuecomment-234669078
   - docker-compose run --rm wait
   - docker-compose run --rm tests composer ci
 
-  # push test image to ECR
-  - docker pull quay.io/keboola/developer-portal-cli-v2:latest
-  - export REPOSITORY=`docker run --rm -e KBC_DEVELOPERPORTAL_USERNAME -e KBC_DEVELOPERPORTAL_PASSWORD -e KBC_DEVELOPERPORTAL_URL quay.io/keboola/developer-portal-cli-v2:latest ecr:get-repository $KBC_DEVELOPERPORTAL_VENDOR $KBC_DEVELOPERPORTAL_APP`
-  - docker tag $APP_IMAGE:latest $REPOSITORY:test
-  - eval $(docker run --rm -e KBC_DEVELOPERPORTAL_USERNAME -e KBC_DEVELOPERPORTAL_PASSWORD -e KBC_DEVELOPERPORTAL_URL quay.io/keboola/developer-portal-cli-v2:latest ecr:get-login $KBC_DEVELOPERPORTAL_VENDOR $KBC_DEVELOPERPORTAL_APP)
-  - docker push $REPOSITORY:test
-  - docker pull quay.io/keboola/syrup-cli:latest
-
-
-script:
-  # run test job inside KBC
-  # - docker run --rm -e KBC_STORAGE_TOKEN quay.io/keboola/syrup-cli:latest run-job $KBC_DEVELOPERPORTAL_APP $KBC_APP_TEST_CONFIG_ID test
-  - skip
+# Push test image to ECR
+after_script:
+  - |
+    set -e
+    if [ "$RUN_PUSH" == "true" ]; then
+      docker pull quay.io/keboola/developer-portal-cli-v2:latest
+      export REPOSITORY=`docker run --rm -e KBC_DEVELOPERPORTAL_USERNAME -e KBC_DEVELOPERPORTAL_PASSWORD -e KBC_DEVELOPERPORTAL_URL quay.io/keboola/developer-portal-cli-v2:latest ecr:get-repository $KBC_DEVELOPERPORTAL_VENDOR $KBC_DEVELOPERPORTAL_APP`
+      docker tag $APP_IMAGE:latest $REPOSITORY:test
+      eval $(docker run --rm -e KBC_DEVELOPERPORTAL_USERNAME -e KBC_DEVELOPERPORTAL_PASSWORD -e KBC_DEVELOPERPORTAL_URL quay.io/keboola/developer-portal-cli-v2:latest ecr:get-login $KBC_DEVELOPERPORTAL_VENDOR $KBC_DEVELOPERPORTAL_APP)
+      docker push $REPOSITORY:test
+      docker pull quay.io/keboola/syrup-cli:latest
+    fi
 
 deploy:
   provider: script
@@ -33,3 +47,4 @@ deploy:
   script: ./deploy.sh
   on:
     tags: true
+    condition: RUN_DEPLOY = "true"

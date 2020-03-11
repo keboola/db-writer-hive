@@ -1,0 +1,1 @@
+MERGE operation is not supported in current Hive DB version. Support is required for incremental write if is used primaryKey option.
