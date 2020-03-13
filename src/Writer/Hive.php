@@ -21,7 +21,7 @@ class Hive extends Writer
     private static array $allowedTypes = [
         'bigint', 'boolean', 'char', 'decimal',
         'double', 'float', 'int', 'real',
-        'smallint', 'string', 'timestamp',
+        'smallint', 'string', 'timestamp', 'date',
         'tinyint', 'varchar', 'binary',
     ];
 
