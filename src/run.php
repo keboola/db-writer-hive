@@ -29,14 +29,13 @@ try {
 
     $app = new HiveApplication($config, $logger, $dataFolder);
     if ($app['action'] !== 'run') {
-        $app['logger']->setHandlers(array(new NullHandler(Logger::INFO)));
+        $app['logger']->setHandlers([new NullHandler(Logger::INFO)]);
     }
 
     echo $app->run();
     exit(0);
 } catch (UserException $e) {
-    // Exception is already logged in Application class
-    // $logger->error($e->getMessage());
+    $logger->error($e->getMessage());
     exit(1);
 } catch (\Throwable $e) {
     $logger->critical(
