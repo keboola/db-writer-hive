@@ -47,4 +47,4 @@ deploy:
   script: ./deploy.sh
   on:
     tags: true
-    condition: RUN_DEPLOY = "true"
+    condition: $RUN_DEPLOY = "true"
