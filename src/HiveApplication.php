@@ -6,6 +6,8 @@ namespace Keboola\DbWriter;
 
 use Keboola\DbWriter\Configuration\HiveActionConfigRowDefinition;
 use Keboola\DbWriter\Configuration\HiveConfigRowDefinition;
+use Keboola\DbWriter\Exception\ApplicationException;
+use Keboola\DbWriter\Exception\UserException;
 
 class HiveApplication extends Application
 {
@@ -20,5 +22,29 @@ class HiveApplication extends Application
             new HiveActionConfigRowDefinition();
 
         parent::__construct($config, $logger, $configDefinition);
+    }
+
+    private function runWriteTable(array $tableConfig): void
+    {
+        $csv = $this->getInputCsv($tableConfig['tableId']);
+        $tableConfig['items'] = $this->reorderColumns($csv, $tableConfig['items']);
+
+        if (empty($tableConfig['items']) || !$tableConfig['export']) {
+            return;
+        }
+
+        // In parent class is error msg logged for run action, but not for testConnection
+        // ... therefore, nothing logs here, but all errors are logged in run.php
+        try {
+            if ($tableConfig['incremental']) {
+                $this->writeIncremental($csv, $tableConfig);
+            } else {
+                $this->writeFull($csv, $tableConfig);
+            }
+        } catch (\PDOException $e) {
+            throw new UserException($e->getMessage(), 0, $e);
+        } catch (\Throwable $e) {
+            throw new ApplicationException($e->getMessage(), 2, $e);
+        }
     }
 }
