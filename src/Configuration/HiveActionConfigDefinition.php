@@ -9,13 +9,15 @@ use Symfony\Component\Config\Definition\Builder\NodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 
-class HiveActionConfigRowDefinition implements ConfigurationInterface
+class HiveActionConfigDefinition implements ConfigurationInterface
 {
     public function getConfigTreeBuilder(): TreeBuilder
     {
         $treeBuilder = new TreeBuilder('parameters');
+        /** @var ArrayNodeDefinition $rootNode */
         $rootNode = $treeBuilder->getRootNode();
 
+        // @formatter:off
         $rootNode
             ->ignoreExtraKeys(false)
             ->children()
@@ -44,8 +46,8 @@ class HiveActionConfigRowDefinition implements ConfigurationInterface
                         ->append($this->addSshNode())
                     ->end()
                 ->end()
-            ->end()
-        ;
+            ->end();
+        // @formatter:on
 
         return $treeBuilder;
     }
@@ -55,6 +57,7 @@ class HiveActionConfigRowDefinition implements ConfigurationInterface
         $builder = new TreeBuilder();
         $node = $builder->root('ssh');
 
+        // @formatter:off
         $node
             ->children()
                 ->booleanNode('enabled')->end()
@@ -77,8 +80,8 @@ class HiveActionConfigRowDefinition implements ConfigurationInterface
                     ->defaultValue('33006')
                 ->end()
                 ->scalarNode('user')->end()
-            ->end()
-        ;
+            ->end();
+        // @formatter:on
 
         return $node;
     }
