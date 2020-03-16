@@ -3,8 +3,9 @@ parameters:
     excludes_analyse:
         - tests/functional/DatadirTestsProvider.php
         - src/run.php
+        - src/Configuration/HiveConfigDefinition.php
         - src/Configuration/HiveConfigRowDefinition.php
-        - src/Configuration/HiveActionConfigRowDefinition.php
+        - src/Configuration/HiveActionConfigDefinition.php
     ignoreErrors:
         - '#invalid type \(array\|null\) supplied for foreach#'
         - '#function preg_replace expects array\|string, string\|null given.#'

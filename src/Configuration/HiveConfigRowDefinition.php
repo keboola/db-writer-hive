@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace Keboola\DbWriter\Configuration;
 
+use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 
-class HiveConfigRowDefinition extends HiveActionConfigRowDefinition
+class HiveConfigRowDefinition extends HiveActionConfigDefinition
 {
     public function getConfigTreeBuilder(): TreeBuilder
     {
         $treeBuilder = new TreeBuilder('parameters');
+        /** @var ArrayNodeDefinition $rootNode */
         $rootNode = $treeBuilder->getRootNode();
 
+        // @formatter:off
         $rootNode
             ->ignoreExtraKeys(false)
             ->children()
@@ -86,8 +89,8 @@ class HiveConfigRowDefinition extends HiveActionConfigRowDefinition
                     ->end()
                     ->end()
                 ->end()
-            ->end()
-        ;
+            ->end();
+        // @formatter:on
 
         return $treeBuilder;
     }
