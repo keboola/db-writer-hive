@@ -29,7 +29,11 @@ try {
 
     $app = new HiveApplication($config, $logger, $dataFolder);
     if ($app['action'] !== 'run') {
-        $app['logger']->setHandlers([new NullHandler(Logger::INFO)]);
+        // On sync actions -> log only errors
+        $logger->setHandlers([
+            Logger::getCriticalHandler(),
+            Logger::getErrorHandler()->setLevel(Logger::ERROR),
+        ]);
     }
 
     echo $app->run();

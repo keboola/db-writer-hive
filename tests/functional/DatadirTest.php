@@ -33,6 +33,12 @@ class DatadirTest extends AbstractDatadirTestCase
         'unicode',
     ];
 
+    // Error messages vary slightly between versions.
+    // ... therefore are these tests tested only in Hive DB 2.3
+    private const TESTS_REQ_2_3_VERSION = [
+        'table-create-error',
+    ];
+
     // MERGE Hive DB operation is required for incremental write with PK,
     // ... and it's supported since 2.2.0 Hive DB version
     private const TESTS_REQ_MERGE_SUPPORT = [
@@ -83,6 +89,15 @@ class DatadirTest extends AbstractDatadirTestCase
         }
         if ($mergeSupported && in_array($this->dataName(), self::TESTS_NOT_COMP_WITH_MERGE_SUPPORT, true)) {
             $this->markTestSkipped('MERGE operation support is not compatible with test.');
+        }
+
+        // Check required version 2.3
+        if (in_array($this->dataName(), self::TESTS_REQ_2_3_VERSION, true) && (
+                version_compare($hiveVersion, '2.3.0', '<') ||
+                version_compare($hiveVersion, '2.4.0', '>=')
+            )
+        ) {
+            $this->markTestSkipped('Test requires Hive DB 2.3.X');
         }
 
         $tempDatadir = $this->getTempDatadir($specification);
