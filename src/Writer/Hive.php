@@ -135,13 +135,23 @@ class Hive extends Writer
         // Columns are ordered according CSV header, see Application::reorderColumns
         $columns = array_filter($table['items'], fn(array $item) => strtolower($item['type']) !== 'ignore');
         $columnsDefs = array_map(fn($column) => $this->createColumnDef($column), $columns);
-        $this->db->query(
-            'CREATE %sql TABLE %n (%sql) %sql',
-            !empty($table['temporary']) ? 'TEMPORARY' : '',
-            $table['dbName'],
-            implode(', ', $columnsDefs),
-            implode(' ', $tableSpec),
-        );
+        try {
+            $this->db->query(
+                'CREATE %sql TABLE %n (%sql) %sql',
+                !empty($table['temporary']) ? 'TEMPORARY' : '',
+                $table['dbName'],
+                implode(', ', $columnsDefs),
+                implode(' ', $tableSpec),
+            );
+        } catch (Dibi\DriverException $e) {
+            // HiveDB has some limitations, eg. table name cannot contains special characters (not even "-")
+            // Let the user know the error message
+            throw new UserException(sprintf(
+                'Failed to create table using sql "%s": %s',
+                $e->getSql(),
+                $e->getMessage()
+            ), 0, $e);
+        }
     }
 
     public function upsert(array $table, string $targetTable): void
