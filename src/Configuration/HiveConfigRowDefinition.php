@@ -83,10 +83,8 @@ class HiveConfigRowDefinition extends HiveActionConfigDefinition
                         ->booleanNode('nullable')
                             ->defaultValue(false)
                         ->end()
-                        ->booleanNode('default')
-                            ->defaultValue(false)
+                            ->scalarNode('default')
                         ->end()
-                    ->end()
                     ->end()
                 ->end()
             ->end();
