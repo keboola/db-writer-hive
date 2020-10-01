@@ -28,5 +28,15 @@
         ]
       }
     ]
+  },
+  "storage": {
+    "input": {
+      "tables": [
+        {
+          "source": "users",
+          "destination": "users.csv"
+        }
+      ]
+    }
   }
 }

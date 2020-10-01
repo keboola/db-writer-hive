@@ -23,5 +23,15 @@
         "type": "string"
       }
     ]
+  },
+  "storage": {
+    "input": {
+      "tables": [
+        {
+          "source": "special",
+          "destination": "special.csv"
+        }
+      ]
+    }
   }
 }
