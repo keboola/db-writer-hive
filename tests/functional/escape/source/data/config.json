@@ -24,5 +24,15 @@
         "size": 1000
       }
     ]
+  },
+  "storage": {
+    "input": {
+      "tables": [
+        {
+          "source": "special",
+          "destination": "special.csv"
+        }
+      ]
+    }
   }
 }

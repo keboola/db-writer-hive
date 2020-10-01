@@ -16,5 +16,15 @@
         "type": "int"
       }
     ]
+  },
+  "storage": {
+    "input": {
+      "tables": [
+        {
+          "source": "users",
+          "destination": "users.csv"
+        }
+      ]
+    }
   }
 }

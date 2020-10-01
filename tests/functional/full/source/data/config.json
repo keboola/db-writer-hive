@@ -29,5 +29,15 @@
         "size": 100
       }
     ]
+  },
+  "storage": {
+    "input": {
+      "tables": [
+        {
+          "source": "sales-tab",
+          "destination": "sales-tab.csv"
+        }
+      ]
+    }
   }
 }

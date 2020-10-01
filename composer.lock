@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4615c5a261e9e5c46d64950d2ff5e18d",
+    "content-hash": "dc61bfd9dbb98b846e79d1c91fb32ff1",
     "packages": [
         {
             "name": "dibi/dibi",
@@ -119,16 +119,16 @@
         },
         {
             "name": "keboola/db-writer-common",
-            "version": "5.5.0",
+            "version": "5.7.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/keboola/db-writer-common.git",
-                "reference": "6485b6c85c1bf736485012887c1902b852a8666b"
+                "reference": "82cfa15a5eb0ba2c1428c4889e0740ef5586ef34"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/keboola/db-writer-common/zipball/6485b6c85c1bf736485012887c1902b852a8666b",
-                "reference": "6485b6c85c1bf736485012887c1902b852a8666b",
+                "url": "https://api.github.com/repos/keboola/db-writer-common/zipball/82cfa15a5eb0ba2c1428c4889e0740ef5586ef34",
+                "reference": "82cfa15a5eb0ba2c1428c4889e0740ef5586ef34",
                 "shasum": ""
             },
             "require": {
@@ -174,7 +174,7 @@
                 "library",
                 "writer"
             ],
-            "time": "2020-03-13T13:34:23+00:00"
+            "time": "2020-09-09T12:37:14+00:00"
         },
         {
             "name": "keboola/php-component",
@@ -657,6 +657,20 @@
             ],
             "description": "Symfony Finder Component",
             "homepage": "https://symfony.com",
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
             "time": "2020-02-14T07:42:58+00:00"
         },
         {
@@ -764,6 +778,20 @@
             ],
             "description": "Symfony Process Component",
             "homepage": "https://symfony.com",
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
             "time": "2020-02-07T20:06:44+00:00"
         },
         {
@@ -846,6 +874,20 @@
             ],
             "description": "Symfony Serializer Component",
             "homepage": "https://symfony.com",
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
             "time": "2020-02-29T10:05:28+00:00"
         }
     ],
@@ -952,6 +994,7 @@
             ],
             "description": "This tool check syntax of PHP files about 20x faster than serial check.",
             "homepage": "https://github.com/JakubOnderka/PHP-Parallel-Lint",
+            "abandoned": "php-parallel-lint/php-parallel-lint",
             "time": "2018-02-24T15:31:20+00:00"
         },
         {
@@ -1470,6 +1513,20 @@
                 "MIT"
             ],
             "description": "PHPStan - PHP Static Analysis Tool",
+            "funding": [
+                {
+                    "url": "https://github.com/ondrejmirtes",
+                    "type": "github"
+                },
+                {
+                    "url": "https://www.patreon.com/phpstan",
+                    "type": "patreon"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/phpstan/phpstan",
+                    "type": "tidelift"
+                }
+            ],
             "time": "2020-03-02T22:29:43+00:00"
         },
         {
@@ -1722,6 +1779,7 @@
             "keywords": [
                 "tokenizer"
             ],
+            "abandoned": true,
             "time": "2019-09-17T06:23:10+00:00"
         },
         {
@@ -2564,5 +2622,6 @@
         "ext-odbc": "*",
         "ext-pdo": "*"
     },
-    "platform-dev": []
+    "platform-dev": [],
+    "plugin-api-version": "1.1.0"
 }
