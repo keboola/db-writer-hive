@@ -7,6 +7,7 @@ parameters:
         - src/Configuration/HiveConfigRowDefinition.php
         - src/Configuration/HiveActionConfigDefinition.php
     ignoreErrors:
+        - '#Class dibi referenced with incorrect case: Dibi\.#'
         - '#invalid type \(array\|null\) supplied for foreach#'
         - '#function preg_replace expects array\|string, string\|null given.#'
         - '#expects string, string\|null given.#'
