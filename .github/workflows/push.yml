@@ -8,7 +8,7 @@ env:
   DOCKERHUB_USER: "keboolabot"
   KBC_DEVELOPERPORTAL_VENDOR: "keboola"
   KBC_DEVELOPERPORTAL_APP: "keboola.ex-db-hive"
-  KBC_DEVELOPERPORTAL_USERNAME: "keboola+github_actions_db_extractor_hive"
+  KBC_DEVELOPERPORTAL_USERNAME: "keboola+wr_db_hive_gha"
   KBC_DEVELOPERPORTAL_PASSWORD: ${{ secrets.KBC_DEVELOPERPORTAL_PASSWORD }}
 jobs:
   Build:
