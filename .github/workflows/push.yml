@@ -2,7 +2,7 @@ name: GitHub Actions
 on: [push]
 env:
   APP_IMAGE: keboola-component-db-writer-hive
-  AWS_ACCESS_KEY_ID: "AKIAQ4QRYXTAENP3IJOD"
+  AWS_ACCESS_KEY_ID: "AKIATDSWT5244OKFBS7I"
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
   DOCKERHUB_USER: "keboolabot"
