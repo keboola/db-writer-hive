@@ -15,7 +15,7 @@ class HiveConnectionFactory
     {
         return sprintf(
             'Driver=%s;Host=%s;Port=%s;Schema=%s;AuthMech=3;UseNativeQuery=1',
-            'MapR Hive ODBC Connector 64-bit',
+            'Cloudera ODBC Driver for Apache Hive 64-bit',
             $host,
             $port,
             $database,

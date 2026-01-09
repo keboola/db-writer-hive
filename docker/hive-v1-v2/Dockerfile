@@ -15,8 +15,11 @@ ENV HADOOP_MAPRED_HOME=$HADOOP_HOME
 WORKDIR /opt
 
 # Install utils
-RUN (apt-get update || true) && \
-    apt-get install -y wget procps && \
+# Use archive.debian.org for Jessie (EOL)
+RUN echo "deb http://archive.debian.org/debian/ jessie main" > /etc/apt/sources.list && \
+    echo "deb http://archive.debian.org/debian-security/ jessie/updates main" >> /etc/apt/sources.list && \
+    apt-get update && \
+    apt-get install -y --force-yes wget procps && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
