@@ -12,7 +12,7 @@ RUN aws s3 cp \
       s3://keboola-drivers/hive-odbc/clouderahiveodbc_2.8.2.1002-2_amd64.deb \
       /tmp/hive-odbc.deb
 
-FROM php:7.4-cli
+FROM php:7.4-cli-bullseye
 
 ARG COMPOSER_FLAGS="--prefer-dist --no-interaction"
 ARG DEBIAN_FRONTEND=noninteractive
