@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\DbWriter\Configuration;
 
+use Keboola\DbWriter\Configuration\Nodes\HiveSslNode;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\NodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
@@ -44,6 +45,7 @@ class HiveActionConfigDefinition implements ConfigurationInterface
                         ->scalarNode('password')->end()
                         ->scalarNode('#password')->end()
                         ->append($this->addSshNode())
+                        ->append($this->addSslNode())
                     ->end()
                 ->end()
             ->end();
@@ -84,5 +86,10 @@ class HiveActionConfigDefinition implements ConfigurationInterface
         // @formatter:on
 
         return $node;
+    }
+
+    public function addSslNode(): NodeDefinition
+    {
+        return new HiveSslNode('ssl');
     }
 }
