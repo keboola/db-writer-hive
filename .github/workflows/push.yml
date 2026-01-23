@@ -51,4 +51,6 @@ jobs:
           docker pull quay.io/keboola/syrup-cli:latest
       - name: Deploy
         if: startsWith(github.ref, 'refs/tags/') && matrix.run_deploy == 'true'
+        env:
+          IMAGE_TAG: ${{ github.ref_name }}
         run: ./deploy.sh
