@@ -17,7 +17,8 @@ class HiveConnectionFactory
         string $host,
         int $port,
         string $database,
-        array $sslParams = []
+        array $sslParams = [],
+        array $httpTransportParams = []
     ): string {
         $dsn = sprintf(
             'Driver=%s;Host=%s;Port=%s;Schema=%s;AuthMech=3;UseNativeQuery=1',
@@ -29,6 +30,11 @@ class HiveConnectionFactory
 
         // Add SSL parameters
         foreach ($sslParams as $key => $value) {
+            $dsn .= sprintf(';%s=%s', $key, $value);
+        }
+
+        // Add HTTP transport parameters
+        foreach ($httpTransportParams as $key => $value) {
             $dsn .= sprintf(';%s=%s', $key, $value);
         }
 
@@ -49,11 +55,15 @@ class HiveConnectionFactory
         $this->certManager = new HiveCertManager($sslConfig);
         $sslParams = $this->certManager->getDsnParameters();
 
+        // Build HTTP transport parameters
+        $httpTransportParams = $this->buildHttpTransportParams($params['httpPath'] ?? null);
+
         $dsn = self::createDns(
             $params['host'],
             isset($params['port']) ? (int) $params['port'] : self::DEFAULT_PORT,
             $params['database'],
             $sslParams,
+            $httpTransportParams,
         );
 
         return new Connection([
@@ -63,5 +73,22 @@ class HiveConnectionFactory
             'password' => $params['#password'],
             'database' => $params['database'],
         ]);
+    }
+
+    private function buildHttpTransportParams(?string $httpPath): array
+    {
+        if ($httpPath === null || $httpPath === '') {
+            return [];
+        }
+
+        // Ensure httpPath starts with /
+        if ($httpPath[0] !== '/') {
+            $httpPath = '/' . $httpPath;
+        }
+
+        return [
+            'TransportMode' => 'http',
+            'HTTPPath' => $httpPath,
+        ];
     }
 }

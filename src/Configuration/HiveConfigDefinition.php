@@ -43,6 +43,7 @@ class HiveConfigDefinition extends HiveActionConfigDefinition
                         ->scalarNode('#password')->end()
                         ->append($this->addSshNode())
                         ->append($this->addSslNode())
+                        ->scalarNode('httpPath')->end()
                     ->end()
                 ->end()
                 ->arrayNode('tables')

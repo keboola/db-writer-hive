@@ -46,6 +46,7 @@ class HiveActionConfigDefinition implements ConfigurationInterface
                         ->scalarNode('#password')->end()
                         ->append($this->addSshNode())
                         ->append($this->addSslNode())
+                        ->scalarNode('httpPath')->end()
                     ->end()
                 ->end()
             ->end();
