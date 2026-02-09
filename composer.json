@@ -21,7 +21,8 @@
         "ext-pdo": "*",
         "dibi/dibi": "^4.1",
         "keboola/db-writer-common": "^5.8",
-        "keboola/php-component": "^7.0.1"
+        "keboola/php-component": "^7.0.1",
+        "keboola/php-temp": "^1.0"
     },
     "require-dev": {
         "keboola/coding-standard": ">=7.0.2",

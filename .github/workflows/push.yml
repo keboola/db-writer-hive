@@ -7,7 +7,7 @@ env:
   DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
   DOCKERHUB_USER: "keboolabot"
   KBC_DEVELOPERPORTAL_VENDOR: "keboola"
-  KBC_DEVELOPERPORTAL_APP: "keboola.ex-db-hive"
+  KBC_DEVELOPERPORTAL_APP: "keboola.wr-db-hive"
   KBC_DEVELOPERPORTAL_USERNAME: "keboola+wr_db_hive_gha"
   KBC_DEVELOPERPORTAL_PASSWORD: ${{ secrets.KBC_DEVELOPERPORTAL_PASSWORD }}
 jobs:
@@ -51,4 +51,6 @@ jobs:
           docker pull quay.io/keboola/syrup-cli:latest
       - name: Deploy
         if: startsWith(github.ref, 'refs/tags/') && matrix.run_deploy == 'true'
+        env:
+          IMAGE_TAG: ${{ github.ref_name }}
         run: ./deploy.sh
