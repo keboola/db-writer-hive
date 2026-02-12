@@ -67,10 +67,6 @@ services:
   # Test cmd: docker-compose exec hive-server beeline -u jdbc:hive2://localhost:10000 -n hive -p 'p#a!s@sw:o&r%^d' -e "SHOW TABLES;"
   hive-server:
     image: hive-server
-    build:
-      context: ${HIVE_SERVER_IMAGE_DIR}
-      args:
-        HIVE_VERSION: ${HIVE_VERSION}
     env_file:
       - ${HIVE_SERVER_IMAGE_DIR}/hadoop-hive.env
     environment:
@@ -100,7 +96,7 @@ services:
     environment:
       SERVICE_PRECONDITION: "hive-metastore-postgresql:5432 namenode:${HADOOP_NAMENODE_WAIT_PORT} datanode:${HADOOP_DATANODE_WAIT_PORT}"
   hive-metastore-postgresql:
-    image: postgres:9.5.3
+    image: postgres:9.6
     environment:
       POSTGRES_DB: metastore
       POSTGRES_USER: hive
