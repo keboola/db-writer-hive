@@ -58,6 +58,10 @@ class HiveConnectionFactory
         // Build HTTP transport parameters
         $httpTransportParams = $this->buildHttpTransportParams($params['httpPath'] ?? null);
 
+        if (!empty($params['thriftTransport'])) {
+            $httpTransportParams['ThriftTransport'] = $params['thriftTransport'];
+        }
+
         $dsn = self::createDns(
             $params['host'],
             isset($params['port']) ? (int) $params['port'] : self::DEFAULT_PORT,

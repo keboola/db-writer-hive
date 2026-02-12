@@ -47,6 +47,7 @@ class HiveActionConfigDefinition implements ConfigurationInterface
                         ->append($this->addSshNode())
                         ->append($this->addSslNode())
                         ->scalarNode('httpPath')->end()
+                        ->scalarNode('thriftTransport')->end()
                     ->end()
                 ->end()
             ->end();
