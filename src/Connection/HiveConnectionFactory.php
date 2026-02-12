@@ -55,12 +55,11 @@ class HiveConnectionFactory
         $this->certManager = new HiveCertManager($sslConfig);
         $sslParams = $this->certManager->getDsnParameters();
 
-        // Build HTTP transport parameters
-        $httpTransportParams = $this->buildHttpTransportParams($params['httpPath'] ?? null);
-
-        if (!empty($params['thriftTransport'])) {
-            $httpTransportParams['ThriftTransport'] = $params['thriftTransport'];
-        }
+        // Build transport parameters
+        $httpTransportParams = $this->buildTransportParams(
+            $params['httpPath'] ?? null,
+            $params['thriftTransport'] ?? null,
+        );
 
         $dsn = self::createDns(
             $params['host'],
@@ -79,20 +78,26 @@ class HiveConnectionFactory
         ]);
     }
 
-    private function buildHttpTransportParams(?string $httpPath): array
+    /**
+     * @param string|int|null $thriftTransport
+     */
+    private function buildTransportParams(?string $httpPath, $thriftTransport): array
     {
-        if ($httpPath === null || $httpPath === '') {
-            return [];
+        $params = [];
+
+        if ($thriftTransport !== null) {
+            $params['ThriftTransport'] = $thriftTransport;
         }
 
-        // Ensure httpPath starts with /
-        if ($httpPath[0] !== '/') {
-            $httpPath = '/' . $httpPath;
+        if ($httpPath !== null && $httpPath !== '') {
+            // Ensure httpPath starts with /
+            if ($httpPath[0] !== '/') {
+                $httpPath = '/' . $httpPath;
+            }
+
+            $params['HTTPPath'] = $httpPath;
         }
 
-        return [
-            'TransportMode' => 'http',
-            'HTTPPath' => $httpPath,
-        ];
+        return $params;
     }
 }
