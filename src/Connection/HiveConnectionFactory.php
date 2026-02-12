@@ -21,7 +21,7 @@ class HiveConnectionFactory
         array $httpTransportParams = []
     ): string {
         $dsn = sprintf(
-            'Driver=%s;Host=%s;Port=%s;Schema=%s;AuthMech=3;UseNativeQuery=1',
+            'Driver=%s;Host=%s;Port=%s;Schema=%s;AuthMech=3;UseNativeQuery=1;KeepAlive=1',
             'Cloudera ODBC Driver for Apache Hive 64-bit',
             $host,
             $port,
