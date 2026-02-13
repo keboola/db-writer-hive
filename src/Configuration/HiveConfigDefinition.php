@@ -44,6 +44,7 @@ class HiveConfigDefinition extends HiveActionConfigDefinition
                         ->append($this->addSshNode())
                         ->append($this->addSslNode())
                         ->scalarNode('httpPath')->end()
+                        ->scalarNode('thriftTransport')->end()
                     ->end()
                 ->end()
                 ->arrayNode('tables')

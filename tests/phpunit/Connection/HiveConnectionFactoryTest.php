@@ -97,27 +97,41 @@ class HiveConnectionFactoryTest extends TestCase
         $this->assertStringContainsString('HTTPPath=/gateway/pipelines-adhoc-query/hive', $dsn);
     }
 
-    public function testBuildHttpTransportParamsAddsSlash(): void
+    public function testBuildTransportParamsAddsSlash(): void
     {
         $factory = new HiveConnectionFactory();
         $reflection = new ReflectionClass($factory);
-        $method = $reflection->getMethod('buildHttpTransportParams');
+        $method = $reflection->getMethod('buildTransportParams');
         $method->setAccessible(true);
 
-        $result = $method->invoke($factory, 'gateway/test/hive');
+        $result = $method->invoke($factory, 'gateway/test/hive', null);
 
-        $this->assertSame('http', $result['TransportMode']);
         $this->assertSame('/gateway/test/hive', $result['HTTPPath']);
+        $this->assertArrayNotHasKey('TransportMode', $result);
     }
 
-    public function testBuildHttpTransportParamsEmptyReturnsEmpty(): void
+    public function testBuildTransportParamsEmptyReturnsEmpty(): void
     {
         $factory = new HiveConnectionFactory();
         $reflection = new ReflectionClass($factory);
-        $method = $reflection->getMethod('buildHttpTransportParams');
+        $method = $reflection->getMethod('buildTransportParams');
         $method->setAccessible(true);
 
-        $this->assertSame([], $method->invoke($factory, null));
-        $this->assertSame([], $method->invoke($factory, ''));
+        $this->assertSame([], $method->invoke($factory, null, null));
+        $this->assertSame([], $method->invoke($factory, '', null));
+    }
+
+    public function testBuildTransportParamsWithThriftTransport(): void
+    {
+        $factory = new HiveConnectionFactory();
+        $reflection = new ReflectionClass($factory);
+        $method = $reflection->getMethod('buildTransportParams');
+        $method->setAccessible(true);
+
+        $result = $method->invoke($factory, 'gateway/test/hive', 2);
+
+        $this->assertSame(2, $result['ThriftTransport']);
+        $this->assertSame('/gateway/test/hive', $result['HTTPPath']);
+        $this->assertArrayNotHasKey('TransportMode', $result);
     }
 }

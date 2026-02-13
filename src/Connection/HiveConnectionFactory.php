@@ -21,7 +21,7 @@ class HiveConnectionFactory
         array $httpTransportParams = []
     ): string {
         $dsn = sprintf(
-            'Driver=%s;Host=%s;Port=%s;Schema=%s;AuthMech=3;UseNativeQuery=1',
+            'Driver=%s;Host=%s;Port=%s;Schema=%s;AuthMech=3;UseNativeQuery=1;KeepAlive=1',
             'Cloudera ODBC Driver for Apache Hive 64-bit',
             $host,
             $port,
@@ -55,8 +55,11 @@ class HiveConnectionFactory
         $this->certManager = new HiveCertManager($sslConfig);
         $sslParams = $this->certManager->getDsnParameters();
 
-        // Build HTTP transport parameters
-        $httpTransportParams = $this->buildHttpTransportParams($params['httpPath'] ?? null);
+        // Build transport parameters
+        $httpTransportParams = $this->buildTransportParams(
+            $params['httpPath'] ?? null,
+            $params['thriftTransport'] ?? null,
+        );
 
         $dsn = self::createDns(
             $params['host'],
@@ -75,20 +78,26 @@ class HiveConnectionFactory
         ]);
     }
 
-    private function buildHttpTransportParams(?string $httpPath): array
+    /**
+     * @param string|int|null $thriftTransport
+     */
+    private function buildTransportParams(?string $httpPath, $thriftTransport): array
     {
-        if ($httpPath === null || $httpPath === '') {
-            return [];
+        $params = [];
+
+        if ($thriftTransport !== null) {
+            $params['ThriftTransport'] = $thriftTransport;
         }
 
-        // Ensure httpPath starts with /
-        if ($httpPath[0] !== '/') {
-            $httpPath = '/' . $httpPath;
+        if ($httpPath !== null && $httpPath !== '') {
+            // Ensure httpPath starts with /
+            if ($httpPath[0] !== '/') {
+                $httpPath = '/' . $httpPath;
+            }
+
+            $params['HTTPPath'] = $httpPath;
         }
 
-        return [
-            'TransportMode' => 'http',
-            'HTTPPath' => $httpPath,
-        ];
+        return $params;
     }
 }
