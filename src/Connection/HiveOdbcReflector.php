@@ -19,7 +19,7 @@ class HiveOdbcReflector extends OdbcReflector
 
     public function getColumns(string $table): array
     {
-        $res = odbc_columns($this->driver->getResource());
+        $res = odbc_columns($this->driver->getResource(), null, null, $table);
         $columns = [];
         while ($row = odbc_fetch_array($res)) {
             if ($row['TABLE_NAME'] === $table) {
