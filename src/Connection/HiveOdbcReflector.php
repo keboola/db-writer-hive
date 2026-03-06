@@ -26,7 +26,7 @@ class HiveOdbcReflector extends OdbcReflector
         // classes) for unrelated tables. The client-side filter below (TABLE_NAME === $table) ensures
         // correctness, but the Metastore may still fail loading metadata for the extra matched tables.
         $escapedTable = strtr($table, ['_' => '\\_', '%' => '\\%']);
-        $res = odbc_columns($this->driver->getResource(), null, null, $escapedTable);
+        $res = odbc_columns($this->driver->getResource(), '', '', $escapedTable);
         $columns = [];
         while ($row = odbc_fetch_array($res)) {
             if ($row['TABLE_NAME'] === $table) {
