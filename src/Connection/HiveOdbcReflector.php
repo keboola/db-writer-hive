@@ -19,7 +19,14 @@ class HiveOdbcReflector extends OdbcReflector
 
     public function getColumns(string $table): array
     {
-        $res = odbc_columns($this->driver->getResource(), null, null, $table);
+        // Escape ODBC wildcard characters in the table name.
+        // The $table parameter of odbc_columns() is a pattern where "_" matches any single character
+        // and "%" matches zero or more characters. Without escaping, a table name like "my_table"
+        // would also match "myXtable", causing the Hive Metastore to load metadata (including SerDe
+        // classes) for unrelated tables. The client-side filter below (TABLE_NAME === $table) ensures
+        // correctness, but the Metastore may still fail loading metadata for the extra matched tables.
+        $escapedTable = strtr($table, ['_' => '\\_', '%' => '\\%']);
+        $res = odbc_columns($this->driver->getResource(), null, null, $escapedTable);
         $columns = [];
         while ($row = odbc_fetch_array($res)) {
             if ($row['TABLE_NAME'] === $table) {
