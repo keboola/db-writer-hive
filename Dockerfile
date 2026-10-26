@@ -24,6 +24,9 @@ WORKDIR /code/
 COPY docker/php/php-prod.ini /usr/local/etc/php/php.ini
 COPY docker/php/composer-install.sh /tmp/composer-install.sh
 
+# Debian 11 (bullseye) is end of life, its packages moved to archive.debian.org
+RUN sed -i 's|deb.debian.org|archive.debian.org|g' /etc/apt/sources.list
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ssh \
         git \
