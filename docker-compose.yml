@@ -51,7 +51,10 @@ services:
   # Test cmd: docker-compose exec ldap ldapsearch -x -H ldap://localhost -b dc=keboola-test,dc=com -D "uid=admin,dc=keboola-test,dc=com" -w 'admin'
   # Modify command: docker-compose exec ldap ldapmodify -H ldap://localhost -D "uid=admin,dc=keboola-test,dc=com" -w 'admin'
   ldap:
-    image: osixia/openldap:1.3.0-amd64
+    # The "1.3.0-amd64" tag was removed from Docker Hub, which makes the test
+    # stack fail with "manifest unknown". The "1.3.0" tag is a multi-arch
+    # manifest for the same version and includes linux/amd64.
+    image: osixia/openldap:1.3.0
     command: --copy-service
     environment:
       LDAP_TLS: 'false'
