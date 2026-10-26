@@ -24,30 +24,8 @@ WORKDIR /code/
 COPY docker/php/php-prod.ini /usr/local/etc/php/php.ini
 COPY docker/php/composer-install.sh /tmp/composer-install.sh
 
-# Debian 11 (bullseye) reached end of life on 2026-08-31 and its package files
-# moved from deb.debian.org to archive.debian.org. Without this step apt-get
-# gets "404 Not Found" and the image does not build. This step points apt to
-# archive.debian.org for the bullseye, bullseye-updates and bullseye-security
-# suites. It keeps the suite and component names of the base image, so the set
-# of installed packages does not change.
-# The "grep -q" fails the build if the base image uses a source layout that the
-# "sed" does not match, instead of failing later with a confusing apt error.
-# "Check-Valid-Until false" lets apt accept the frozen indexes of the archive.
-# The image stays on PHP 7.4 and Debian 11. They get no more security updates,
-# but the official php:7.4 image has no Debian 12 or 13 variant. An upgrade to a
-# supported PHP version is a separate task.
-RUN set -ex; \
-	for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.list; do \
-		[ -f "$f" ] || continue; \
-		sed -i \
-			-e 's|https\?://deb\.debian\.org/|http://archive.debian.org/|g' \
-			-e 's|https\?://security\.debian\.org/debian-security|http://archive.debian.org/debian-security|g' \
-			-e 's|https\?://security\.debian\.org/|http://archive.debian.org/debian-security/|g' \
-			"$f"; \
-	done; \
-	grep -q 'archive\.debian\.org' /etc/apt/sources.list; \
-	echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99archive-debian; \
-	cat /etc/apt/sources.list
+# Debian 11 (bullseye) is end of life, its packages moved to archive.debian.org
+RUN sed -i 's|deb.debian.org|archive.debian.org|g' /etc/apt/sources.list
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ssh \
